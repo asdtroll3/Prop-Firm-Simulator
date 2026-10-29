@@ -69,8 +69,9 @@ Date;Symbol;Open;High;Low;Close;Volume
 - One trade per day, entered at the 10:00 ET open with a bracket (stop and take profit), closed at 16:00 if neither is hit
 - Commission $1.22 round turn per MNQ; slippage on entry and stop, none on the take-profit limit order
 - Evaluation: $50k balance, end-of-day trailing drawdown that locks at the starting balance, profit target, optional consistency rule
-- Funded account: starts at $0, end-of-day trailing drawdown that locks at $0, payout when cycle profit, minimum days and
-  consistency are met; payout = min(% of balance, cap) × profit split
+- Funded account: starts at $50k with a $2k end-of-day trailing drawdown; once the balance passes $52,100 the drawdown
+  is static at $50,100. A payout can be requested when the balance is at least $54k and the minimum days since the last
+  payout are met; payout = min(% of profit, $2k cap) × 90% split, so profit above $54k does not raise the payout
 - A failed evaluation or blown funded account means buying a new evaluation; no resets (they usually cost more than a new account)
 - Daily loss limit flattens the trade at the limit; it does not fail the account
 - Real-data mode: targets are rounded to whole points; when stop and target fall in the same 1-minute bar the order is

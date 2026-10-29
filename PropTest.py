@@ -13,8 +13,9 @@ STRATEGY (per the paper)
 
 PROP FIRM RULES (configurable below)
   Evaluation: $50k balance, $3k target, $2k EOD trailing drawdown (locks at start balance)
-  Funded    : starts at $0, $2k EOD trailing drawdown (locks at $0),
-              payout when cycle profit >= $4k, request = min(50% of balance, cap), 90% split
+  Funded    : starts at $50k, $2k EOD trailing drawdown; once the balance passes $52,100 it is
+              static at $50,100. Payout when the balance is >= $54k (min 5 days since the last one),
+              request = min(50% of profit, $2k cap), 90% split
   Billing: one-time fee per evaluation; a failed evaluation (or blown funded account) means buying a new one.
            No resets (a reset usually costs more than a new account). Optional monthly
            rebill of a still-running evaluation with --rebill (off by default; few firms use it).
@@ -63,13 +64,14 @@ MONTHLY_REBILL    = False    # True: an evaluation still running after BILLING_D
 BILLING_DAYS      = 30
 
 # Funded account
-FUNDED_TARGET     = 4_000.0  # cycle profit needed to request a payout
-FUNDED_DD         = 2_000.0  # EOD trailing, locks at $0
+FUNDED_TARGET     = 4_000.0  # payout allowed once the balance is this far above start (54k)
+FUNDED_DD         = 2_000.0  # EOD trailing ...
+FUNDED_LOCK       = 100.0    # ... until the peak reaches start + DD + LOCK (52,100), then static at start + LOCK (50,100)
 FUNDED_CAP        = 2_000.0  # max single payout
-FUNDED_FRACTION   = 0.50     # max payout = 50% of balance
+FUNDED_FRACTION   = 0.50     # max payout = 50% of profit
 FUNDED_SPLIT      = 0.90     # trader keeps 90%
-FUNDED_CONSIST    = 0.40     # best day <= 40% of cycle profit
-FUNDED_MIN_DAYS   = 3        # min trading days per payout cycle
+FUNDED_CONSIST    = 0.0      # best day <= X of cycle profit; 0 = no consistency rule
+FUNDED_MIN_DAYS   = 5        # min trading days per payout cycle
 FUNDED_MIN_PAYOUT = 125.0
 FUNDED_FEE        = 0.0      # one-off activation fee when moving evaluation -> funded
 
@@ -211,8 +213,12 @@ def build_daily_table(df: pd.DataFrame) -> pd.DataFrame:
 # ----------------------------------------------------------------------------
 def _simulate(day_ord, long_gross, dirs, comm,
               fee, c_bal, c_target, c_dd, c_cons,
-              x_target, x_dd, x_cap, x_frac, x_split, x_cons, x_mindays, x_minpay,
+              x_target, x_dd, x_lock, x_cap, x_frac, x_split, x_cons, x_mindays, x_minpay,
               x_fee, rebill, billing):
+    if c_cons <= 0:                    # 0 = no consistency rule
+        c_cons = np.inf
+    if x_cons <= 0:
+        x_cons = np.inf
     n_paths, n_days = dirs.shape
     out = np.zeros((n_paths, 7))
     for p in range(n_paths):
@@ -283,12 +289,12 @@ def _simulate(day_ord, long_gross, dirs, comm,
                     continue
                 if bal > peak:
                     peak = bal
-                    mll = min(peak - x_dd, 0.0)        # trails, locks at $0
+                    mll = min(peak - x_dd, x_lock)     # trails, then locks at start + x_lock
                 cyc_profit += pnl
                 cyc_days += 1
                 if pnl > best:
                     best = pnl
-                if (cyc_profit >= x_target and cyc_days >= x_mindays
+                if (bal >= x_target and cyc_days >= x_mindays  # balance-based threshold (54k)
                         and best <= x_cons * cyc_profit):
                     req = min(x_frac * bal, x_cap)
                     if req >= x_minpay:
@@ -343,7 +349,8 @@ def run(daily: pd.DataFrame, n_paths: int, seed: int, direction: str,
 
         res.append(_simulate(day_ord, long_gross, dirs, comm,
                              EVAL_FEE, EVAL_BALANCE, EVAL_TARGET, EVAL_DD, EVAL_CONSIST,
-                             FUNDED_TARGET, FUNDED_DD, FUNDED_CAP, FUNDED_FRACTION, FUNDED_SPLIT, FUNDED_CONSIST,
+                             FUNDED_TARGET, FUNDED_DD, FUNDED_LOCK, FUNDED_CAP, FUNDED_FRACTION, FUNDED_SPLIT,
+                             FUNDED_CONSIST,
                              FUNDED_MIN_DAYS, FUNDED_MIN_PAYOUT, FUNDED_FEE, rebill, BILLING_DAYS))
 
         # raw (no prop firm) stats

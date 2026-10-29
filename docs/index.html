@@ -419,7 +419,7 @@ const C = {
   SEED: 42,
 
   c_bal: 50000, c_target: 3000, c_dd: 2000, c_cons: 0.50,
-  x_target: 4000, x_dd: 2000, x_cap: 2000, x_frac: 0.50, x_split: 0.90,
+  x_target: 4000, x_dd: 2000, x_lock: 100, x_cap: 2000, x_frac: 0.50, x_split: 0.90,
   x_cons: 0, x_mindays: 5, x_minpay: 125, x_fee: 0,
   billing: 30,
 };
@@ -586,10 +586,12 @@ function simulate(o, fee, budget, rebill, nPaths, trace = null, p0 = 0) {
           bal = C.c_bal; peak = C.c_bal; mll = C.c_bal - C.c_dd; best = 0;
           continue;
         }
-        if (bal > peak) { peak = bal; mll = Math.min(peak - C.x_dd, 0); }
+        // trails until the peak reaches start + dd + lock, then stays at start + lock (e.g. 52,100 -> 50,100)
+        if (bal > peak) { peak = bal; mll = Math.min(peak - C.x_dd, C.x_lock); }
         cycProfit += pnl; cycDays++;
         if (pnl > best) best = pnl;
-        if (cycProfit >= C.x_target && cycDays >= C.x_mindays && best <= xCons * cycProfit) {
+        // payout once the balance is x_target above start (e.g. 54k), whatever was paid out before
+        if (bal >= C.x_target && cycDays >= C.x_mindays && best <= xCons * cycProfit) {
           const req = Math.min(C.x_frac * bal, C.x_cap);
           if (req >= C.x_minpay) {
             if (nPay === 0) { firstDay[p] = d; firstFees[p] = costs; }
@@ -1035,13 +1037,13 @@ window.addEventListener('resize', () => {
 
 $('rules').innerHTML = [
   `Evaluation: $${C.c_bal / 1000}k balance; drawdown trails end-of-day and locks at the starting balance`,
-  `Funded: starts at $0; drawdown trails end-of-day and locks at $0`,
+  `Funded: starts at the $${C.c_bal / 1000}k balance; drawdown trails end-of-day until the peak reaches start + drawdown + lock, then stays at start + lock`,
   `Consistency: best single day ≤ X% of total profit (evaluation) or of the payout cycle's profit (funded)`,
   `No resets: a failed evaluation is replaced by buying a new one (resets usually cost more than a new account)`,
   `Monthly rebill (off by default, few firms still use it): an evaluation still running after 30 days is charged again`,
   `Commission: $${C.COMM_RT} round-turn per MNQ; size = risk ÷ (stop × $${C.MNQ_PT}), rounded down to whole contracts`,
   `Daily loss limit: a losing trade is flattened at the limit (the day ends, the account is not failed)`,
-  `Payout request = min(% of balance, max payout), minimum $${C.x_minpay}; the profit split is applied to it`,
+  `Payout: allowed once the balance is the threshold above start; request = min(% of profit, max payout), minimum $${C.x_minpay}; the profit split is applied to it`,
   `A blown funded account sends the trader back to buying a new evaluation`,
 ].map(t => `<li>${t}</li>`).join('');
 
@@ -1049,11 +1051,11 @@ $('rules').innerHTML = [
 // FIRM RULES PANEL
 // ----------------------------------------------------------------------------
 const PRESETS = {
-  Strict:  { c_target: 3000, c_dd: 2000, c_cons: 0.40, x_fee: 150, x_dd: 2000, x_target: 4000,
+  Strict:  { c_target: 3000, c_dd: 2000, c_cons: 0.40, x_fee: 150, x_dd: 2000, x_lock: 100, x_target: 4000,
              x_mindays: 5, x_cap: 1500, x_frac: 0.50, x_split: 0.80, x_cons: 0.30 },
-  Typical: { c_target: 3000, c_dd: 2000, c_cons: 0.50, x_fee: 0, x_dd: 2000, x_target: 4000,
+  Typical: { c_target: 3000, c_dd: 2000, c_cons: 0.50, x_fee: 0, x_dd: 2000, x_lock: 100, x_target: 4000,
              x_mindays: 5, x_cap: 2000, x_frac: 0.50, x_split: 0.90, x_cons: 0 },
-  Lenient: { c_target: 3000, c_dd: 2500, c_cons: 0, x_fee: 0, x_dd: 2500, x_target: 2000,
+  Lenient: { c_target: 3000, c_dd: 2500, c_cons: 0, x_fee: 0, x_dd: 2500, x_lock: 0, x_target: 2000,
              x_mindays: 3, x_cap: 3000, x_frac: 1.00, x_split: 0.90, x_cons: 0 },
 };
 const RULES = [
@@ -1062,10 +1064,11 @@ const RULES = [
   { k: 'c_cons', group: 'eval', label: 'Consistency (best day ≤)', seg: [0, 0.40, 0.50] },
   { k: 'x_fee', group: 'funded', label: 'Activation fee', pre: '$', min: 0, step: 10 },
   { k: 'x_dd', group: 'funded', label: 'Max trailing drawdown', pre: '$', min: 250, step: 250 },
-  { k: 'x_target', group: 'funded', label: 'Profit needed per payout', pre: '$', min: 250, step: 250 },
+  { k: 'x_lock', group: 'funded', label: 'Drawdown locks at start +', pre: '$', min: 0, step: 50 },
+  { k: 'x_target', group: 'funded', label: 'Payout threshold (profit above start)', pre: '$', min: 250, step: 250 },
   { k: 'x_mindays', group: 'funded', label: 'Min trading days per payout', post: 'days', min: 1, step: 1 },
   { k: 'x_cap', group: 'funded', label: 'Max payout', pre: '$', min: 125, step: 250 },
-  { k: 'x_frac', group: 'funded', label: 'Max payout as % of balance', post: '%', scale: 100, min: 1, step: 5 },
+  { k: 'x_frac', group: 'funded', label: 'Max payout as % of profit', post: '%', scale: 100, min: 1, step: 5 },
   { k: 'x_split', group: 'funded', label: 'Profit split (trader keeps)', post: '%', scale: 100, min: 1, step: 5 },
   { k: 'x_cons', group: 'funded', label: 'Consistency (best day ≤)', seg: [0, 0.30, 0.40, 0.50] },
 ];
