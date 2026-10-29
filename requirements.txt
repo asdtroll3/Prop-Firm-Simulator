@@ -1,0 +1,3 @@
+numpy>=2.0
+pandas>=2.2
+numba>=0.60    # optional: ~50x faster PropTest.py simulation

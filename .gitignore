@@ -1,0 +1,19 @@
+# Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# Editors
+.idea/
+.vscode/
+
+# Market data and backtest outputs - not published
+*.csv
+
+# Research papers - linked from the README instead of redistributed
+*.pdf
+
+# Real-data mode file, generated from the 1-minute CSV by export_days.py.
+# Delete this line if you decide to publish it (the page's "Real NQ data" mode needs it).
+docs/nq_days.js
