@@ -5,7 +5,7 @@ How much does a futures prop firm's rule set, rather than your trading, decide w
 This project simulates a typical $50k prop firm evaluation → funded account lifecycle with a one-trade-per-day
 strategy, thousands of times over, and shows what traders actually end up with after fees and payouts.
 
-**[Open the interactive simulator](https://YOUR-USERNAME.github.io/YOUR-REPO/)**
+**[Open the interactive simulator](https://asdtroll3.github.io/Prop-Firm-Simulator/)**
 
 ![Simulator results: distribution of trader outcomes, average net by win rate, and one trader's account over time](docs/screenshot.png)
 
@@ -83,8 +83,8 @@ The presets are generic and do not describe any specific firm.
 
 The strategy and the question come from two SSRN working papers:
 
-- Youngblood (2026), *TITLE* - [SSRN](https://papers.ssrn.com/)
-- Villahermosa, *TITLE* - [SSRN](https://papers.ssrn.com/)
+- Youngblood (2026), The Inherent Value of Retail Prop Firms for Fixed-Size Trading Strategies - [SSRN](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=7514219)
+- Villahermosa (2026), Prop-Firm Challenges: A Barrier Model of Pass Rates and Expected Value - [SSRN](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=7445798)
 
 ## Disclaimer
 
